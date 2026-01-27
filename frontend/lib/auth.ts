@@ -33,8 +33,8 @@ export function setAuthToken(token: string): void {
 /**
  * Get authentication token from localStorage
  */
-export function getAuthToken(): string | null | void{
-  if (typeof window === 'undefined') return;
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
@@ -58,8 +58,8 @@ export function setUser(user: User): void {
 /**
  * Get user info from localStorage
  */
-export function getUser(): User | null | void {
-  if (typeof window === 'undefined') return;
+export function getUser(): User | null {
+  if (typeof window === 'undefined') return null;
   const userStr = localStorage.getItem(USER_KEY);
   if (!userStr) return null;
   try {
