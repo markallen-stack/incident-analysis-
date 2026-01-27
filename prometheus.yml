@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'incident-analysis'
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # FastAPI application metrics
+  - job_name: 'incident-rag'
+    static_configs:
+      - targets: ['incident-rag:8000']
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+
+  # Docker metrics (if using cAdvisor)
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/metrics'
+
+  # Node exporter (system metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []

@@ -1,0 +1,82 @@
+{
+  "timestamp": "2024-01-15T14:32:15Z",
+  "type": "grafana_dashboard",
+  "metrics": {
+    "api_gateway": {
+      "response_time_p95": 4200,
+      "response_time_p99": 8500,
+      "error_rate": 0.34,
+      "request_rate": 8500,
+      "status_codes": {
+        "200": 5610,
+        "500": 1700,
+        "503": 850,
+        "504": 340
+      },
+      "upstream_latency": 3500
+    },
+    "user_service": {
+      "response_time_avg": 2800,
+      "error_rate": 0.45,
+      "request_rate": 4200,
+      "database_connection_pool": {
+        "total": 40,
+        "in_use": 40,
+        "available": 0,
+        "queued": 23
+      },
+      "cpu_usage": 0.85,
+      "memory_usage": 0.78
+    },
+    "database": {
+      "connection_pool": {
+        "total": 40,
+        "in_use": 40,
+        "idle": 0,
+        "waiting": 23
+      },
+      "query_execution_time_p95": 2100,
+      "slow_queries": 8,
+      "lock_timeout_events": 4,
+      "cache_hit_ratio": 0.42,
+      "disk_io_rate": 2.3,
+      "cpu_usage": 0.95,
+      "memory_usage": 0.88
+    },
+    "system": {
+      "memory_available": "2.1 GB",
+      "disk_space": {
+        "available": "45 GB",
+        "used": "155 GB",
+        "total": "200 GB"
+      }
+    }
+  },
+  "alerts": [
+    {
+      "severity": "CRITICAL",
+      "message": "API Error Rate High: 34% (threshold: 5%)",
+      "timestamp": "2024-01-15T14:32:11Z"
+    },
+    {
+      "severity": "CRITICAL",
+      "message": "Database Connection Pool Exhausted: 40/40 connections",
+      "timestamp": "2024-01-15T14:32:08Z"
+    },
+    {
+      "severity": "CRITICAL",
+      "message": "User Service Degraded: 45% error rate",
+      "timestamp": "2024-01-15T14:32:23Z"
+    },
+    {
+      "severity": "WARNING",
+      "message": "High CPU Usage: 95%",
+      "timestamp": "2024-01-15T14:32:22Z"
+    },
+    {
+      "severity": "WARNING",
+      "message": "Response Time P99: 8.5s (threshold: 1s)",
+      "timestamp": "2024-01-15T14:32:10Z"
+    }
+  ]
+}

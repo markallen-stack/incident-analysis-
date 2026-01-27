@@ -1,0 +1,357 @@
+{
+  "incidents": [
+    {
+      "id": "INC-001",
+      "name": "Memory Leak After Deployment",
+      "expected_verdict": "ANSWER",
+      "expected_confidence": 0.85,
+      "user_query": "We had an outage at 14:32 UTC. API response times spiked and users reported 500 errors after the morning deployment.",
+      "timestamp": "2024-01-15T14:32:00Z",
+      "dashboard_data": {
+        "metrics": [
+          {
+            "name": "cpu_usage_percent",
+            "baseline": 18,
+            "spike_value": 95,
+            "spike_time": "14:31:00Z",
+            "pattern": "sudden_spike"
+          },
+          {
+            "name": "memory_usage_mb",
+            "baseline": 2048,
+            "spike_value": 7890,
+            "spike_time": "14:31:30Z",
+            "pattern": "gradual_increase"
+          },
+          {
+            "name": "response_time_ms",
+            "baseline": 120,
+            "spike_value": 8500,
+            "spike_time": "14:32:00Z",
+            "pattern": "sudden_spike"
+          }
+        ],
+        "alerts": [
+          {
+            "time": "14:32:15Z",
+            "severity": "critical",
+            "message": "API Gateway - High CPU"
+          },
+          {
+            "time": "14:32:45Z",
+            "severity": "critical",
+            "message": "API Gateway - Memory threshold exceeded"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "timestamp": "2024-01-15T14:29:15Z",
+          "level": "INFO",
+          "service": "api-gateway",
+          "message": "Deployment v2.1.5 started",
+          "metadata": {"version": "2.1.5", "git_commit": "abc123def"}
+        },
+        {
+          "timestamp": "2024-01-15T14:30:00Z",
+          "level": "INFO",
+          "service": "api-gateway",
+          "message": "Deployment v2.1.5 completed successfully"
+        },
+        {
+          "timestamp": "2024-01-15T14:31:45Z",
+          "level": "ERROR",
+          "service": "api-gateway",
+          "message": "java.lang.OutOfMemoryError: Java heap space",
+          "stack_trace": "at com.example.ConnectionPool.allocate(ConnectionPool.java:145)"
+        },
+        {
+          "timestamp": "2024-01-15T14:32:00Z",
+          "level": "ERROR",
+          "service": "api-gateway",
+          "message": "Connection pool exhausted: Cannot allocate new connection",
+          "count": 47
+        },
+        {
+          "timestamp": "2024-01-15T14:32:30Z",
+          "level": "ERROR",
+          "service": "api-gateway",
+          "message": "HTTP 500: Internal Server Error",
+          "count": 312
+        }
+      ],
+      "historical_incidents": [
+        {
+          "incident_id": "INC-2023-089",
+          "similarity": 0.92,
+          "root_cause": "Memory leak in connection pool due to improper resource cleanup",
+          "services": ["api-gateway"],
+          "resolution": "Rolled back deployment, added try-finally blocks for connection cleanup",
+          "date": "2023-11-12"
+        }
+      ],
+      "runbooks": [
+        {
+          "title": "API Gateway Memory Issues",
+          "relevant_sections": [
+            "Memory leak diagnosis: Check for unclosed connections",
+            "Emergency rollback procedure",
+            "Heap dump capture for post-mortem"
+          ]
+        }
+      ],
+      "expected_root_cause": "Memory leak introduced in deployment v2.1.5 due to improper connection cleanup in ConnectionPool.allocate()",
+      "expected_evidence_sources": ["dashboard", "logs", "historical"]
+    },
+    {
+      "id": "INC-002",
+      "name": "Traffic Spike Hypothesis - INSUFFICIENT EVIDENCE",
+      "expected_verdict": "REFUSE",
+      "expected_confidence": 0.45,
+      "user_query": "Database started throwing connection errors around 15:45. Could it be a traffic spike?",
+      "timestamp": "2024-01-15T15:45:00Z",
+      "dashboard_data": {
+        "metrics": [
+          {
+            "name": "db_connections_active",
+            "baseline": 45,
+            "spike_value": 198,
+            "spike_time": "15:45:00Z",
+            "pattern": "sudden_spike"
+          },
+          {
+            "name": "db_query_latency_ms",
+            "baseline": 15,
+            "spike_value": 850,
+            "spike_time": "15:45:30Z",
+            "pattern": "sudden_spike"
+          }
+        ],
+        "alerts": []
+      },
+      "logs": [
+        {
+          "timestamp": "2024-01-15T15:45:20Z",
+          "level": "ERROR",
+          "service": "postgres-primary",
+          "message": "FATAL: sorry, too many clients already",
+          "count": 89
+        },
+        {
+          "timestamp": "2024-01-15T15:46:00Z",
+          "level": "WARN",
+          "service": "api-gateway",
+          "message": "Database connection timeout after 30s"
+        }
+      ],
+      "historical_incidents": [],
+      "runbooks": [
+        {
+          "title": "Database Connection Pool Troubleshooting",
+          "relevant_sections": [
+            "Check for connection leaks",
+            "Verify request rate hasn't exceeded capacity",
+            "Look for slow queries holding connections"
+          ]
+        }
+      ],
+      "missing_evidence": [
+        "No request rate metrics available",
+        "No load balancer data",
+        "No application-level request logs",
+        "No slow query logs from database"
+      ],
+      "expected_reason": "Cannot confirm traffic spike hypothesis without request rate data. Connection exhaustion visible but root cause unclear."
+    },
+    {
+      "id": "INC-003",
+      "name": "DNS Resolution Failure",
+      "expected_verdict": "ANSWER",
+      "expected_confidence": 0.88,
+      "user_query": "Intermittent service timeouts started at 10:15. Some requests work, others timeout.",
+      "timestamp": "2024-01-16T10:15:00Z",
+      "dashboard_data": {
+        "metrics": [
+          {
+            "name": "request_success_rate",
+            "baseline": 99.9,
+            "drop_value": 73.2,
+            "drop_time": "10:15:00Z",
+            "pattern": "intermittent_drops"
+          },
+          {
+            "name": "response_time_p99_ms",
+            "baseline": 200,
+            "spike_value": 30000,
+            "spike_time": "10:15:00Z",
+            "pattern": "timeout_spikes"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "timestamp": "2024-01-16T10:15:05Z",
+          "level": "ERROR",
+          "service": "user-service",
+          "message": "java.net.UnknownHostException: payment-service.internal",
+          "count": 156
+        },
+        {
+          "timestamp": "2024-01-16T10:15:30Z",
+          "level": "ERROR",
+          "service": "order-service",
+          "message": "DNS resolution timeout for payment-service.internal",
+          "count": 89
+        },
+        {
+          "timestamp": "2024-01-16T10:14:50Z",
+          "level": "INFO",
+          "service": "dns-server",
+          "message": "CoreDNS pod restarted due to OOMKilled"
+        }
+      ],
+      "historical_incidents": [
+        {
+          "incident_id": "INC-2024-023",
+          "similarity": 0.85,
+          "root_cause": "DNS server pod crash causing intermittent resolution failures",
+          "services": ["dns-server", "multiple-services"],
+          "resolution": "Increased DNS server memory limits, added horizontal pod autoscaling",
+          "date": "2024-01-03"
+        }
+      ],
+      "expected_root_cause": "DNS server OOM crash causing intermittent hostname resolution failures",
+      "expected_evidence_sources": ["logs", "dashboard", "historical"]
+    },
+    {
+      "id": "INC-004",
+      "name": "Conflicting Evidence - REQUEST MORE DATA",
+      "expected_verdict": "REQUEST_MORE_DATA",
+      "expected_confidence": 0.62,
+      "user_query": "Payment processing started failing at 11:30",
+      "timestamp": "2024-01-16T11:30:00Z",
+      "dashboard_data": {
+        "metrics": [
+          {
+            "name": "payment_success_rate",
+            "baseline": 99.5,
+            "drop_value": 45.0,
+            "drop_time": "11:30:00Z",
+            "pattern": "sudden_drop"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "timestamp": "2024-01-16T11:30:15Z",
+          "level": "ERROR",
+          "service": "payment-service",
+          "message": "Stripe API returned 503 Service Unavailable",
+          "count": 234
+        },
+        {
+          "timestamp": "2024-01-16T11:29:45Z",
+          "level": "INFO",
+          "service": "payment-service",
+          "message": "Updated Stripe API key configuration"
+        }
+      ],
+      "conflicting_evidence": [
+        "Stripe status page shows all systems operational",
+        "Other services using Stripe API working normally",
+        "No deployment or config change visible in logs (despite INFO message)"
+      ],
+      "needed_evidence": [
+        "Actual Stripe API request/response logs",
+        "API key validation status",
+        "Network path tracing to Stripe endpoints",
+        "Configuration diff for the API key update"
+      ],
+      "expected_reason": "Evidence suggests Stripe API issue but conflicts with Stripe's status page. API key change timing suspicious but need config diff to confirm."
+    },
+    {
+      "id": "INC-005",
+      "name": "Cascading Failure - Multiple Root Causes",
+      "expected_verdict": "ANSWER",
+      "expected_confidence": 0.78,
+      "user_query": "Complete system outage started at 16:00. Everything is down.",
+      "timestamp": "2024-01-16T16:00:00Z",
+      "dashboard_data": {
+        "metrics": [
+          {
+            "name": "cache_hit_rate",
+            "baseline": 95.0,
+            "drop_value": 2.0,
+            "drop_time": "15:58:00Z",
+            "pattern": "sudden_drop"
+          },
+          {
+            "name": "db_query_rate",
+            "baseline": 1200,
+            "spike_value": 18500,
+            "spike_time": "15:58:30Z",
+            "pattern": "sudden_spike"
+          },
+          {
+            "name": "db_cpu_percent",
+            "baseline": 35,
+            "spike_value": 100,
+            "spike_time": "15:59:00Z",
+            "pattern": "sudden_spike"
+          }
+        ]
+      },
+      "logs": [
+        {
+          "timestamp": "2024-01-16T15:58:00Z",
+          "level": "ERROR",
+          "service": "redis-cluster",
+          "message": "Redis cluster lost quorum - 2 of 3 nodes unreachable"
+        },
+        {
+          "timestamp": "2024-01-16T15:58:15Z",
+          "level": "WARN",
+          "service": "api-gateway",
+          "message": "Cache miss rate: 98% (was 5%)"
+        },
+        {
+          "timestamp": "2024-01-16T15:58:45Z",
+          "level": "ERROR",
+          "service": "postgres-primary",
+          "message": "Connection pool exhausted due to high query rate"
+        },
+        {
+          "timestamp": "2024-01-16T16:00:00Z",
+          "level": "CRITICAL",
+          "service": "postgres-primary",
+          "message": "Database refusing new connections"
+        }
+      ],
+      "expected_root_cause": "Redis cluster failure (primary) → cache miss storm → database overload (cascading)",
+      "expected_evidence_sources": ["dashboard", "logs"],
+      "note": "This demonstrates a cascading failure where multiple issues compound"
+    }
+  ],
+  "evaluation_criteria": {
+    "INC-001": {
+      "must_cite": ["deployment timing", "memory errors", "historical INC-2023-089"],
+      "must_not_claim": ["traffic spike", "external dependency"]
+    },
+    "INC-002": {
+      "must_refuse": true,
+      "must_request": ["request rate metrics", "load balancer data"]
+    },
+    "INC-003": {
+      "must_cite": ["DNS errors", "CoreDNS OOM", "intermittent pattern"],
+      "must_not_claim": ["application code bug"]
+    },
+    "INC-004": {
+      "must_request_data": true,
+      "must_acknowledge_conflict": true
+    },
+    "INC-005": {
+      "must_identify_cascade": true,
+      "must_cite_primary_cause": "Redis failure"
+    }
+  }
+}

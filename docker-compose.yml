@@ -1,0 +1,93 @@
+services:
+  # Main application
+  incident-rag:
+    build:
+      context: ./backend
+      target: production
+    container_name: incident-rag
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/vector_db/indexes:/app/vector_db/indexes
+      - ./backend/logs:/app/logs
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - incident-network
+
+  ui:
+    build:
+      context: ./frontend
+      target: production
+    container_name: incident-rag-ui
+    ports:
+      - "8501:3000"
+    depends_on:
+      - incident-rag
+    restart: unless-stopped
+    networks:
+      - incident-network
+
+  # Development container with hot reload
+  dev:
+    build:
+      context: ./backend
+      target: development
+    container_name: incident-rag-dev
+    env_file:
+      - ./backend/.env
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    command: bash -c "pip install -e . && python -m pytest --watch"
+    networks:
+      - incident-network
+
+  # Prometheus metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: incident-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - incident-network
+    restart: unless-stopped
+
+  # Grafana for metrics visualization and dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: incident-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./backend/grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./backend/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - incident-network
+    restart: unless-stopped
+
+networks:
+  incident-network:
+    driver: bridge
+
+volumes:
+  vector_indexes:
+  logs:
+  prometheus_data:
+  grafana_data:

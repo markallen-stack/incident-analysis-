@@ -1,0 +1,73 @@
+{
+  "timestamp": "2024-01-15T14:34:00Z",
+  "type": "grafana_dashboard",
+  "title": "System Recovery Status",
+  "metrics": {
+    "api_gateway": {
+      "response_time_p95": 450,
+      "response_time_p99": 850,
+      "error_rate": 0.02,
+      "request_rate": 7200,
+      "status_codes": {
+        "200": 7056,
+        "500": 144,
+        "503": 0,
+        "504": 0
+      },
+      "upstream_latency": 45
+    },
+    "user_service": {
+      "response_time_avg": 52,
+      "error_rate": 0.03,
+      "request_rate": 3600,
+      "database_connection_pool": {
+        "total": 40,
+        "in_use": 8,
+        "available": 32,
+        "queued": 0
+      },
+      "cpu_usage": 0.35,
+      "memory_usage": 0.42
+    },
+    "database": {
+      "connection_pool": {
+        "total": 40,
+        "in_use": 8,
+        "idle": 32,
+        "waiting": 0
+      },
+      "query_execution_time_p95": 85,
+      "slow_queries": 0,
+      "lock_timeout_events": 0,
+      "cache_hit_ratio": 0.88,
+      "disk_io_rate": 0.15,
+      "cpu_usage": 0.35,
+      "memory_usage": 0.48
+    },
+    "system": {
+      "memory_available": "8.5 GB",
+      "disk_space": {
+        "available": "95 GB",
+        "used": "105 GB",
+        "total": "200 GB"
+      }
+    }
+  },
+  "alerts": [
+    {
+      "severity": "RESOLVED",
+      "message": "API Error Rate Normalized: 2%",
+      "timestamp": "2024-01-15T14:34:00Z"
+    },
+    {
+      "severity": "RESOLVED",
+      "message": "Database Connection Pool Healthy: 8/40 connections",
+      "timestamp": "2024-01-15T14:33:45Z"
+    },
+    {
+      "severity": "RESOLVED",
+      "message": "User Service Recovered: 3% error rate",
+      "timestamp": "2024-01-15T14:33:50Z"
+    }
+  ]
+}

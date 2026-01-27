@@ -1,0 +1,16 @@
+{
+  "individual_results": [
+    "EvaluationResult(incident_id='INC-001', expected_verdict='ANSWER', actual_verdict='REFUSE', expected_confidence=0.85, actual_confidence=0.5, correct_decision=False, confidence_delta=0.35, cited_sources=[], missing_citations=['deployment timing', 'memory errors', 'historical INC-2023-089'], false_claims=[])",
+    "EvaluationResult(incident_id='INC-002', expected_verdict='REFUSE', actual_verdict='REFUSE', expected_confidence=0.45, actual_confidence=0.05000000000000002, correct_decision=True, confidence_delta=0.4, cited_sources=[], missing_citations=[], false_claims=[])",
+    "EvaluationResult(incident_id='INC-003', expected_verdict='ANSWER', actual_verdict='REFUSE', expected_confidence=0.88, actual_confidence=0.5, correct_decision=False, confidence_delta=0.38, cited_sources=[], missing_citations=['DNS errors', 'CoreDNS OOM', 'intermittent pattern'], false_claims=[])",
+    "EvaluationResult(incident_id='INC-004', expected_verdict='REQUEST_MORE_DATA', actual_verdict='REFUSE', expected_confidence=0.62, actual_confidence=0.05000000000000002, correct_decision=False, confidence_delta=0.57, cited_sources=[], missing_citations=[], false_claims=[])",
+    "EvaluationResult(incident_id='INC-005', expected_verdict='ANSWER', actual_verdict='REFUSE', expected_confidence=0.78, actual_confidence=0.4, correct_decision=False, confidence_delta=0.38, cited_sources=[], missing_citations=[], false_claims=[])"
+  ],
+  "aggregate_metrics": {
+    "accuracy": 0.2,
+    "correct_decisions": 1,
+    "total_incidents": 5,
+    "avg_confidence_delta": 0.4159999999999999,
+    "citation_quality": 0.6
+  }
+}
