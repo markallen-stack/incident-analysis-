@@ -31,6 +31,7 @@ export function ThemeToggle() {
   }, [theme]);
 
   const toggleTheme = () => {
+    if (typeof window === 'undefined') return;
     const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('theme', nextTheme);
     setTheme(nextTheme);

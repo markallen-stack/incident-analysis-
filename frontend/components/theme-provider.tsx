@@ -4,8 +4,20 @@ import { useEffect, useState } from 'react';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
+  
+    const applyTheme = (theme: string) => {
+      if (typeof window === 'undefined') return;
+      const html = document.documentElement;
+      if (theme === 'dark') {
+        html.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+      }
+      localStorage.setItem('theme', theme);
+    };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     
     // Check for saved theme preference or system preference
@@ -15,16 +27,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     
     applyTheme(theme);
   }, []);
-
-  const applyTheme = (theme: string) => {
-    const html = document.documentElement;
-    if (theme === 'dark') {
-      html.classList.add('dark');
-    } else {
-      html.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  };
 
   // Prevent hydration mismatch
   if (!mounted) {

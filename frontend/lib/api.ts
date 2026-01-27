@@ -264,6 +264,7 @@ export interface AuditLogEntry {
   id: string;
   action: string;
   resource?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   details?: Record<string, any>;
   ip_address?: string;
   user_agent?: string;
