@@ -26,13 +26,15 @@ export interface AuthResponse {
  * Store authentication token in localStorage
  */
 export function setAuthToken(token: string): void {
+  if (typeof window === 'undefined') return;
   localStorage.setItem(AUTH_TOKEN_KEY, token);
 }
 
 /**
  * Get authentication token from localStorage
  */
-export function getAuthToken(): string | null {
+export function getAuthToken(): string | null | void{
+  if (typeof window === 'undefined') return;
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
@@ -40,6 +42,7 @@ export function getAuthToken(): string | null {
  * Remove authentication token
  */
 export function clearAuthToken(): void {
+  if (typeof window === 'undefined') return;
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
@@ -48,13 +51,15 @@ export function clearAuthToken(): void {
  * Store user info in localStorage
  */
 export function setUser(user: User): void {
+  if (typeof window === 'undefined') return;
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 /**
  * Get user info from localStorage
  */
-export function getUser(): User | null {
+export function getUser(): User | null | void {
+  if (typeof window === 'undefined') return;
   const userStr = localStorage.getItem(USER_KEY);
   if (!userStr) return null;
   try {
