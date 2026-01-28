@@ -21,30 +21,32 @@ import { AnalysisResponse } from '@/lib/api';
 interface AnalysisResultsProps {
   analysis: AnalysisResponse | undefined;
   isLoading?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  streamStatus:any
 }
 
-export function AnalysisResults({ analysis, isLoading }: AnalysisResultsProps) {
+export function AnalysisResults({ analysis, isLoading, streamStatus }: AnalysisResultsProps & { streamStatus?: string }) {
   if (isLoading) {
     return (
-      <>
-        <CardHeader>
-          <CardTitle className="text-xl text-foreground">Analysis Results</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-card flex items-center justify-center mb-4 animate-pulse">
-              <Clock className="w-8 h-8 text-primary animate-spin" />
-            </div>
-            <p className="text-foreground font-medium">Analyzing incident...</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Running multi-agent analysis pipeline
-            </p>
-            <Progress value={undefined} className="mt-4 w-full max-w-xs" />
-          </div>
-        </CardContent>
-      </>
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+        <Clock className="w-8 h-8 text-primary animate-spin mb-4" />
+        <p className="text-foreground font-medium">Analyzing incident...</p>
+        
+        {/* Live Status Badge */}
+        {streamStatus && (
+          <Badge variant="outline" className="mt-4 border-primary/50 text-primary animate-pulse">
+            Active Agent: {streamStatus.replace('_', ' ').toUpperCase()}
+          </Badge>
+        )}
+        
+        <p className="text-sm text-muted-foreground mt-2">
+          {streamStatus === 'log_retriever' ? 'Scanning distributed logs...' : 'Running multi-agent pipeline'}
+        </p>
+        <Progress value={undefined} className="mt-4 w-full max-w-xs" />
+      </CardContent>
     );
   }
+
 
   if (!analysis) {
     return (

@@ -9,14 +9,16 @@ import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Send, Plus, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAnalyzeIncident } from '@/lib/hooks/useAnalysis';
-import { AnalysisRequest, AnalysisResponse } from '@/lib/api';
+import { AnalysisRequest, AnalysisResponse, analyzeIncident } from '@/lib/api';
 
 interface AnalysisFormProps {
   onAnalysisComplete: (result: AnalysisResponse) => void;
   onAnalysisStart?: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onStreamUpdate?:(node:any)=>void
 }
 
-export function AnalysisForm({ onAnalysisComplete, onAnalysisStart }: AnalysisFormProps) {
+export function AnalysisForm({ onAnalysisComplete, onAnalysisStart, onStreamUpdate }: AnalysisFormProps) {
   const [query, setQuery] = useState('');
   const [timestamp, setTimestamp] = useState('');
   const [services, setServices] = useState<string[]>([]);
@@ -41,58 +43,92 @@ const fileToBase64 = (file: File) =>
   });
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+//   const handleSubmit = async (e: React.FormEvent) => {
+//   e.preventDefault();
+
+//   if (!query || !timestamp) {
+//     toast.error('Missing required fields. Please provide query and timestamp.');
+//     return;
+//   }
+
+//   // Notify parent that analysis is starting
+//   onAnalysisStart?.();
+
+//   const logFilesBase64 = await Promise.all(
+//     logFiles.map(fileToBase64)
+//   );
+
+//   const dashboardImagesBase64 = await Promise.all(
+//     screenshotFiles.map(fileToBase64)
+//   );
+
+//   const payload = {
+//     query,
+//     timestamp,
+//     services,
+//     log_files_base64: logFilesBase64, // ✅ correct shape
+//     dashboard_images: dashboardImagesBase64.map(f => f.content_base64),
+//   };
+
+//   mutation.mutate(payload as AnalysisRequest, {
+//     onSuccess: (data: AnalysisResponse) => {
+//       onAnalysisComplete(data);
+//       toast.success('Analysis completed successfully!', {
+//         description: `Confidence: ${(data.confidence * 100).toFixed(0)}%`,
+//       });
+//     },
+//     onError: (error: { response?: { data?: { detail?: {msg: string}[] } }; message?: string }) => {
+//       let msg = 'Unknown error occurred';
+
+//       if (Array.isArray(error?.response?.data?.detail)) {
+//         msg = error.response.data.detail.map((d) => d.msg).join(', ');
+//       } else if (error?.message) {
+//         msg = error.message;
+//       }
+
+//       toast.error(`Analysis failed: ${msg}`, {
+//         duration: 7000,
+//       });
+//       onAnalysisStart?.(); // Reset loading state on error
+//     },
+//   });
+// };
+
+// Inside AnalysisForm component
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-
-  if (!query || !timestamp) {
-    toast.error('Missing required fields. Please provide query and timestamp.');
-    return;
-  }
-
-  // Notify parent that analysis is starting
   onAnalysisStart?.();
 
-  const logFilesBase64 = await Promise.all(
-    logFiles.map(fileToBase64)
-  );
+  try {
+    const logFilesBase64 = await Promise.all(logFiles.map(fileToBase64));
+    const dashboardImagesBase64 = await Promise.all(screenshotFiles.map(fileToBase64));
 
-  const dashboardImagesBase64 = await Promise.all(
-    screenshotFiles.map(fileToBase64)
-  );
+    const payload = {
+      query,
+      timestamp,
+      services,
+      log_files_base64: logFilesBase64,
+      dashboard_images: dashboardImagesBase64.map(f => f.content_base64),
+    };
 
-  const payload = {
-    query,
-    timestamp,
-    services,
-    log_files_base64: logFilesBase64, // ✅ correct shape
-    dashboard_images: dashboardImagesBase64.map(f => f.content_base64),
-  };
-
-  mutation.mutate(payload as AnalysisRequest, {
-    onSuccess: (data: AnalysisResponse) => {
-      onAnalysisComplete(data);
-      toast.success('Analysis completed successfully!', {
-        description: `Confidence: ${(data.confidence * 100).toFixed(0)}%`,
-      });
-    },
-    onError: (error: { response?: { data?: { detail?: {msg: string}[] } }; message?: string }) => {
-      let msg = 'Unknown error occurred';
-
-      if (Array.isArray(error?.response?.data?.detail)) {
-        msg = error.response.data.detail.map((d) => d.msg).join(', ');
-      } else if (error?.message) {
-        msg = error.message;
+    // Use the streaming helper instead of the raw mutation.mutate
+    const result = await analyzeIncident(
+      payload as AnalysisRequest, 
+      (update) => {
+        // This is the magic part that updates the UI live
+        if (update.node) onStreamUpdate?.(update.node);
       }
+    );
+    console.log(result)
 
-      toast.error(`Analysis failed: ${msg}`, {
-        duration: 7000,
-      });
-      onAnalysisStart?.(); // Reset loading state on error
-    },
-  });
+    onAnalysisComplete(result);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    toast.error(`Analysis failed: ${error.message}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onAnalysisComplete(undefined as any); // Reset loading state
+  }
 };
-
-
 
   const addService = () => {
     if (serviceInput && !services.includes(serviceInput)) {

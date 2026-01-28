@@ -100,11 +100,64 @@ export async function checkHealth(): Promise<HealthResponse> {
   return response.data;
 }
 
+// Add this helper for streaming
 export async function analyzeIncident(
-  request: AnalysisRequest
+  request: AnalysisRequest,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onUpdate?: (data: any) => void // Make these optional
 ): Promise<AnalysisResponse> {
-  const response = await api.post('/analyze', request);
-  return response.data;
+  const authHeader = getAuthHeader();
+  
+  const response = await fetch(`${API_BASE_URL}/analyze/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authHeader ? { 'Authorization': authHeader } : {}),
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let finalResult: any = null;
+
+  return new Promise(async (resolve, reject) => {
+    try {
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const parsed = JSON.parse(line.substring(6).trim());
+            
+            // 1. If it's progress, call the optional UI callback
+            if (parsed.status === 'progress' && onUpdate) {
+              onUpdate(parsed);
+            }
+            
+            // 2. If it's the final result, store it to resolve the promise
+            if (parsed.status === 'complete') {
+              finalResult = parsed.finalData; // Ensure this matches your FastAPI yield
+            }
+
+            if (parsed.status === 'error') {
+              reject(new Error(parsed.detail));
+            }
+          }
+        }
+      }
+      resolve(finalResult);
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 export async function getAnalysis(analysisId: string): Promise<AnalysisResponse> {

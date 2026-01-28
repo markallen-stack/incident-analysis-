@@ -147,64 +147,40 @@ export function usePlan(query: string, timestamp: string, enabled: boolean = fal
  * - Toast notifications
  * - Error handling
  */
+import { useState } from 'react';
+
 export function useAnalyzeIncident() {
   const queryClient = useQueryClient();
+  // Add local state to track the stream progress
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
 
-  return useMutation({
-    mutationFn: analyzeIncident,
+  const mutation = useMutation({
+    mutationFn: (variables: AnalysisRequest) => 
+      analyzeIncident(variables, (progress) => {
+        // This now triggers a re-render!
+        setStreamStatus(progress.node || progress.message);
+      }),
     
-    // Called before mutation
-    onMutate: async (variables) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.analyses });
-      
-      // Show loading toast
-      toast.loading('Analyzing incident...', {
-        id: 'analyzing',
-        description: 'Running multi-agent analysis',
-      });
-      
-      return { variables };
+    onMutate: () => {
+      setStreamStatus('Initializing...');
+      toast.loading('Analyzing...', { id: 'analyzing' });
     },
-    
-    // Called on success
-    onSuccess: (data, variables, context) => {
-      // Dismiss loading toast
+
+    onSuccess: (data) => {
+      setStreamStatus(null); // Clear on success
       toast.dismiss('analyzing');
-      
-      // Show success toast
-      toast.success('Analysis complete!', {
-        description: `Confidence: ${(data.confidence * 100).toFixed(0)}%`,
-        duration: 5000,
-      });
-      
-      // Cache the analysis result
       queryClient.setQueryData(queryKeys.analysis(data.analysis_id), data);
-      
-      // Invalidate stats to update counts
-      queryClient.invalidateQueries({ queryKey: queryKeys.stats });
     },
-    
-    // Called on error
-    onError: (error: { message: string }, variables, context) => {
-      // Dismiss loading toast
-      toast.dismiss('analyzing');
-      
-      // Show error toast
-      toast.error('Analysis failed', {
-        description:  error.message || 'Unknown error occurred',
-        duration: 7000,
-      });
-    },
-    
-    // Always called
-    onSettled: () => {
-      // Refetch health to ensure API is still responsive
-      queryClient.invalidateQueries({ queryKey: queryKeys.health });
-    },
-  });
-}
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      setStreamStatus(null);
+      toast.dismiss('analyzing');
+    }
+  });
+
+  return { ...mutation, streamStatus };
+}
 /**
  * Hook for managing analysis history in memory
  * Uses React Query's cache as the source of truth

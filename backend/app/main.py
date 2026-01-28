@@ -491,34 +491,119 @@ async def get_analysis(
 
 
 @app.post("/analyze/stream", tags=["Analysis"])
-async def analyze_incident_stream(request: IncidentAnalysisRequest):
-    """
-    Stream analysis progress as Server-Sent Events.
-    Returns real-time updates as each agent completes.
-    """
+async def analyze_incident_stream(
+    request: IncidentAnalysisRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)
+):
     async def event_generator():
-        try:
-            yield f"data: {json.dumps({'stage': 'started', 'message': 'Analysis started'})}\n\n"
-            
-            # Plan
-            yield f"data: {json.dumps({'stage': 'planning', 'message': 'Creating execution plan'})}\n\n"
-            plan = plan_incident_analysis(request.query, request.timestamp)
-            yield f"data: {json.dumps({'stage': 'plan_complete', 'plan': plan})}\n\n"
-            
-            # Evidence collection
-            yield f"data: {json.dumps({'stage': 'evidence', 'message': 'Gathering evidence'})}\n\n"
-            
-            # Continue with rest of pipeline...
-            # (Simplified for brevity)
-            
-            yield f"data: {json.dumps({'stage': 'complete', 'message': 'Analysis complete'})}\n\n"
+        analysis_id = f"analysis_{int(datetime.now().timestamp() * 1000)}"
+        # 1. Initialize with all keys to avoid KeyErrors
+        accumulated_state = {
+            "user_query": request.query,
+            "timestamp": request.timestamp or datetime.now().isoformat(),
+            "logs": request.logs or [],
+            "dashboard_images": request.dashboard_images or [],
+            "image_evidence": [],
+            "log_evidence": [],
+            "rag_evidence": [],
+            "metrics_evidence": [],
+            "dashboard_evidence": [],
+            "timeline": [],
+            "agent_history": [],
+            "errors": []
+        }
         
+        try:
+            # Handle log parsing (Same as your logic)
+            if request.log_files_base64:
+                accumulated_state["logs"] = [{"content": log.content_base64, "source": log.filename} for log in request.log_files_base64]
+            
+            graph = build_incident_analysis_graph()
+            start_time = datetime.now()
+            yield f"data: {json.dumps({'status': 'started', 'analysis_id': analysis_id})}\n\n"
+
+            # 2. STREAM AND ACCUMULATE
+            async for chunk in graph.astream(accumulated_state, stream_mode="updates"):
+                node_name = list(chunk.keys())[0]
+                node_data = chunk[node_name]
+                
+                # --- CRITICAL FIX: The Update Logic ---
+                for key, value in node_data.items():
+                    if isinstance(value, list) and key in accumulated_state:
+                        # Append to lists (evidence, history, etc.) instead of overwriting
+                        accumulated_state[key].extend(value)
+                    else:
+                        # Update single values (decision, plan, etc.)
+                        accumulated_state[key] = value
+                
+                # Send progress with partial data string
+                yield f"data: {json.dumps({'status': 'progress', 'node': node_name, 'data': str(node_data)[:200]})}\n\n"
+
+            # 3. BUILD FINAL RESPONSE FROM ACCUMULATED STATE
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+            final_resp = accumulated_state.get("final_response", {})
+            
+            response = IncidentAnalysisResponse(
+                analysis_id=analysis_id,
+                status=accumulated_state.get("decision", "refuse"),
+                confidence=accumulated_state.get("overall_confidence", 0.0),
+                root_cause=final_resp.get("root_cause"),
+                evidence={
+                    "logs": [{"source": e.source, "confidence": e.confidence} for e in accumulated_state.get("log_evidence", [])],
+                    "rag": [{"source": e.source, "confidence": e.confidence} for e in accumulated_state.get("rag_evidence", [])],
+                    "metrics": [{"source": e.source, "confidence": e.confidence} for e in accumulated_state.get("metrics_evidence", [])],
+                    "images": [{"source": e.source, "confidence": e.confidence} for e in accumulated_state.get("image_evidence", [])],
+                    "dashboards": [{"source": e.source, "confidence": e.confidence} for e in accumulated_state.get("dashboard_evidence", [])]
+                },
+                timeline=accumulated_state.get("timeline", []),
+                recommended_actions=final_resp.get("recommended_actions", []),
+                alternative_hypotheses=final_resp.get("alternative_hypotheses", []),
+                missing_evidence=final_resp.get("missing_evidence", []),
+                processing_time_ms=processing_time,
+                agent_history=accumulated_state.get("agent_history", [])
+            )
+            
+            # 4. Final DB save parity
+            try:
+                user_id = current_user.id if current_user else None
+                await create_analysis(db, analysis_id, request.model_dump(), response.model_dump(), user_id)
+            except Exception as e:
+                print(f"DB Error: {e}")
+
+            yield f"data: {json.dumps({'status': 'complete', 'analysis_id': analysis_id, 'finalData': response.model_dump()})}\n\n"
+
         except Exception as e:
-            yield f"data: {json.dumps({'stage': 'error', 'error': str(e)})}\n\n"
-    
+            yield f"data: {json.dumps({'status': 'error', 'detail': str(e)})}\n\n"
+        try:
+            # Convert Pydantic models to dict (works with both v1 and v2)
+            request_dict = request.model_dump() if hasattr(request, 'model_dump') else request.dict()
+            response_dict = response.model_dump() if hasattr(response, 'model_dump') else response.dict()
+            
+            user_id = current_user.id if current_user else None
+            
+            await create_analysis(
+                db=db,
+                analysis_id=analysis_id,
+                request=request_dict,
+                response=response_dict,
+                user_id=user_id
+            )
+            
+            # Log analysis creation
+            if current_user:
+                await create_audit_log(
+                    db=db,
+                    user_id=current_user.id,
+                    action="run_analysis",
+                    resource=f"analysis:{analysis_id}",
+                    details={"query": request.query[:100]}  # First 100 chars
+                )
+        except Exception as db_error:
+            print(f"⚠️  Failed to save analysis to database: {db_error}")
+            # Fallback to in-memory cache for backward compatibility
+            analysis_cache[analysis_id] = response
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
 @app.post("/upload-logs", tags=["Data"])
 async def upload_logs(
     file: UploadFile = File(...),

@@ -25,17 +25,20 @@ const queryClient = new QueryClient();
 function AppContent() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResponse>();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [streamStatus, setStreamStatus] = useState<string>('');
   const { user, isAuthenticated } = useAuth();
   const logout = useLogout();
 
   const handleAnalysisComplete = (result: AnalysisResponse) => {
     setCurrentAnalysis(result);
     setIsAnalyzing(false);
+    setStreamStatus('');
   };
 
   const handleAnalysisStart = () => {
     setIsAnalyzing(true);
     setCurrentAnalysis(undefined);
+    setStreamStatus('Initializing Agents...');
   };
 
   // Show login if not authenticated
@@ -105,6 +108,7 @@ function AppContent() {
                   <AnalysisForm 
                     onAnalysisComplete={handleAnalysisComplete}
                     onAnalysisStart={handleAnalysisStart}
+                    onStreamUpdate={setStreamStatus}
                   />
                 </Card>
 
@@ -113,6 +117,7 @@ function AppContent() {
                   <AnalysisResults 
                     analysis={currentAnalysis} 
                     isLoading={isAnalyzing}
+                    streamStatus={streamStatus}
                   />
                 </Card>
               </div>
