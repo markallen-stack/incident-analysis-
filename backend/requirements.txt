@@ -29,7 +29,6 @@ requests>=2.31.0
 
 # Utilities
 python-dotenv>=1.0.0
-pydantic>=2.0.0
 tqdm>=4.65.0
 
 # Evaluation
@@ -62,8 +61,8 @@ alembic>=1.13.0  # Database migrations
 gunicorn>=21.2.0
 
 # Additional utilities
-pydantic[email]
 pydantic>=2.5.0
+email-validator
 python-json-logger>=2.0.7  # Structured logging
 
 # Optional: Performance
@@ -79,10 +78,12 @@ slowapi>=0.1.9
 
 # Optional: Authentication
 python-jose[cryptography]>=3.3.0  # JWT
-pwdlib  # Modern password hashing (Argon2id/Bcrypt)
 pwdlib[argon2]
+
+# Pinecone (vector DB + inference)
+pinecone
 # Testing
 httpx>=0.26.0  # Async HTTP client for tests
 pytest-asyncio>=0.23.0
 prometheus-fastapi-instrumentator
-prometheus_api_client
+prometheus-api-client

@@ -1,0 +1,52 @@
+# Production requirements (Pinecone-only, slim image)
+#
+# Goal: keep the Docker image small by excluding heavyweight local-ML deps
+# (torch/transformers/sentence-transformers/faiss/pandas/sklearn/etc.)
+#
+# If you need those locally, keep them in `requirements.txt` / `requirements-dev.txt`.
+
+# FastAPI and ASGI server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+gunicorn>=21.2.0
+
+# Config / validation
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+email-validator
+
+# LangGraph / LangChain
+langgraph>=0.2.0
+langchain>=0.1.0
+langchain-anthropic>=0.1.0
+langchain-openai>=0.1.0
+anthropic>=0.18.0
+openai>=1.12.0
+
+# Pinecone (vector DB + inference)
+pinecone
+
+# Observability / monitoring
+requests>=2.31.0
+prometheus-client>=0.19.0
+prometheus-fastapi-instrumentator
+prometheus-api-client
+
+# Database
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.29.0
+alembic>=1.13.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+pwdlib[argon2]
+
+# Utilities
+tqdm>=4.65.0
+python-json-logger>=2.0.7
+orjson>=3.9.0
+httptools>=0.6.0
+sentry-sdk>=1.39.0
+slowapi>=0.1.9
+

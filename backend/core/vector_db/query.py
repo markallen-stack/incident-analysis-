@@ -35,22 +35,18 @@ class VectorSearcher:
         Initialize the searcher.
         
         Args:
-            use_local_embeddings: If True, use local sentence-transformers instead of Pinecone inference
+            use_local_embeddings: Deprecated. Pinecone-only deployment does not support local embeddings.
         """
-        self.use_local_embeddings = use_local_embeddings
+        if use_local_embeddings:
+            raise ValueError("Local embeddings are not supported (Pinecone-only mode).")
+        self.use_local_embeddings = False
         
         # Initialize Pinecone
         self.pc = Pinecone(api_key=config.PINECONE_API_KEY)
         
-        # Set up embedding model
-        if use_local_embeddings:
-            from sentence_transformers import SentenceTransformer
-            self.model_name = config.EMBEDDING_MODEL
-            self.encoder = SentenceTransformer(self.model_name)
-        else:
-            # Use Pinecone's inference API
-            self.model_name = config.PINECONE_EMBEDDING_MODEL or "multilingual-e5-large"
-            self.encoder = None
+        # Use Pinecone's inference API
+        self.model_name = config.PINECONE_EMBEDDING_MODEL or "multilingual-e5-large"
+        self.encoder = None
         
         # Index names
         self.log_index_name = config.PINECONE_LOG_INDEX or "incident-logs"
@@ -72,18 +68,13 @@ class VectorSearcher:
         Returns:
             Embedding vector
         """
-        if self.use_local_embeddings:
-            # Use local model
-            embedding = self.encoder.encode([query], convert_to_numpy=True)[0]
-            return embedding.tolist()
-        else:
-            # Use Pinecone inference API
-            response = self.pc.inference.embed(
-                model=self.model_name,
-                inputs=[query],
-                parameters={"input_type": "query"}  # Important: use "query" for search queries
-            )
-            return response[0].values
+        # Use Pinecone inference API
+        response = self.pc.inference.embed(
+            model=self.model_name,
+            inputs=[query],
+            parameters={"input_type": "query"}  # Important: use "query" for search queries
+        )
+        return response[0].values
     
     def search_logs(
         self,
@@ -365,19 +356,15 @@ def main():
         help='Index to search'
     )
     parser.add_argument('--top-k', type=int, default=5, help='Number of results')
-    parser.add_argument(
-        '--local-embeddings',
-        action='store_true',
-        help='Use local embeddings instead of Pinecone inference'
-    )
+    # Pinecone-only: local embeddings removed to keep production slim
     
     args = parser.parse_args()
     
     print(f"\nSearching {args.type} for: '{args.query}'")
     print("="*60)
     
-    # Create searcher with specified embedding mode
-    searcher = get_searcher(use_local_embeddings=args.local_embeddings)
+    # Create searcher
+    searcher = get_searcher(use_local_embeddings=False)
     
     if args.type == 'logs':
         results = searcher.search_logs(args.query, top_k=args.top_k)

@@ -10,7 +10,6 @@ Creates Pinecone indexes with built-in embeddings for:
 Usage:
     python vector_db/setup.py
     python vector_db/setup.py --rebuild  # Force rebuild all indexes
-    python vector_db/setup.py --local-embeddings  # Use local model instead
 """
 from pathlib import Path
 import json
@@ -39,28 +38,21 @@ class VectorDBSetup:
         Initialize the setup manager.
         
         Args:
-            use_local_embeddings: If True, use local sentence-transformers instead of Pinecone inference
+            use_local_embeddings: Deprecated. Pinecone-only deployment does not support local embeddings.
         """
-        self.use_local_embeddings = use_local_embeddings
+        if use_local_embeddings:
+            raise ValueError("Local embeddings are not supported (Pinecone-only mode).")
+        self.use_local_embeddings = False
         
         # Initialize Pinecone
         self.pc = Pinecone(api_key=config.PINECONE_API_KEY)
         
-        # Set up embedding model
-        if use_local_embeddings:
-            from sentence_transformers import SentenceTransformer
-            self.model_name = config.EMBEDDING_MODEL
-            print(f"Loading local embedding model: {self.model_name}")
-            self.encoder = SentenceTransformer(self.model_name)
-            self.dimension = self.encoder.get_sentence_embedding_dimension()
-            self.metric = "cosine"
-        else:
-            # Use Pinecone's inference API
-            self.model_name = config.PINECONE_EMBEDDING_MODEL or "multilingual-e5-large"
-            print(f"Using Pinecone inference with model: {self.model_name}")
-            self.encoder = None
-            self.dimension = self._get_model_dimension(self.model_name)
-            self.metric = "cosine"
+        # Use Pinecone's inference API
+        self.model_name = config.PINECONE_EMBEDDING_MODEL or "multilingual-e5-large"
+        print(f"Using Pinecone inference with model: {self.model_name}")
+        self.encoder = None
+        self.dimension = self._get_model_dimension(self.model_name)
+        self.metric = "cosine"
         
         print(f"Embedding dimension: {self.dimension}")
         
@@ -113,27 +105,19 @@ class VectorDBSetup:
         Returns:
             List of embedding vectors
         """
-        if self.use_local_embeddings:
-            # Use local model
-            embeddings = self.encoder.encode(texts, convert_to_numpy=True)
-            return [emb.tolist() for emb in embeddings]
-        else:
-            # Use Pinecone inference API
-            from pinecone import Pinecone
-            
-            # Batch embed using Pinecone inference
-            embeddings = []
-            batch_size = 96  # Pinecone inference batch limit
-            
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                response = self.pc.inference.embed(
-                    model=self.model_name,
-                    inputs=batch,
-                    parameters={"input_type": "passage"}
-                )
-                embeddings.extend([item.values for item in response])            
-            return embeddings
+        # Use Pinecone inference API (batch embed)
+        embeddings = []
+        batch_size = 96  # Pinecone inference batch limit
+
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            response = self.pc.inference.embed(
+                model=self.model_name,
+                inputs=batch,
+                parameters={"input_type": "passage"}
+            )
+            embeddings.extend([item.values for item in response])
+        return embeddings
     
     def create_log_index(self, force_rebuild: bool = False) -> Tuple[int, str]:
         """
@@ -176,7 +160,7 @@ class VectorDBSetup:
         
         # Create embeddings and upsert in batches
         print("Creating embeddings and uploading to Pinecone...")
-        batch_size = config.BATCH_SIZE if self.use_local_embeddings else 96
+        batch_size = 96
         
         for i in tqdm(range(0, len(logs), batch_size), desc="Processing batches"):
             batch = logs[i:i + batch_size]
@@ -254,7 +238,7 @@ class VectorDBSetup:
         
         # Create embeddings and upsert in batches
         print("Creating embeddings and uploading to Pinecone...")
-        batch_size = config.BATCH_SIZE if self.use_local_embeddings else 96
+        batch_size = 96
         
         for i in tqdm(range(0, len(incidents), batch_size), desc="Processing batches"):
             batch = incidents[i:i + batch_size]
@@ -336,7 +320,7 @@ class VectorDBSetup:
         
         # Create embeddings and upsert in batches
         print("Creating embeddings and uploading to Pinecone...")
-        batch_size = config.BATCH_SIZE if self.use_local_embeddings else 96
+        batch_size = 96
         
         for i in tqdm(range(0, len(runbooks), batch_size), desc="Processing batches"):
             batch = runbooks[i:i + batch_size]
@@ -546,23 +530,18 @@ def main():
         action='store_true',
         help='Force rebuild of all indexes'
     )
-    parser.add_argument(
-        '--local-embeddings',
-        action='store_true',
-        help='Use local sentence-transformers instead of Pinecone inference'
-    )
+    # Pinecone-only: local embeddings removed to keep production slim
     
     args = parser.parse_args()
     
     print("="*60)
     print("Pinecone Vector Database Setup")
     print("="*60)
-    embedding_mode = "Local (sentence-transformers)" if args.local_embeddings else "Pinecone Inference API"
-    print(f"Embedding mode: {embedding_mode}")
+    print("Embedding mode: Pinecone Inference API")
     print("="*60)
     
     try:
-        setup = VectorDBSetup(use_local_embeddings=args.local_embeddings)
+        setup = VectorDBSetup(use_local_embeddings=False)
         
         log_count, log_name = setup.create_log_index(force_rebuild=args.rebuild)
         incident_count, incident_name = setup.create_incident_index(force_rebuild=args.rebuild)
