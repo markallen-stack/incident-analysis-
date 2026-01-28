@@ -156,7 +156,9 @@ async def login(
     Login with email and password. Returns JWT access token.
     """
     # Get user
+    print(f"Request: {request}")
     user = await get_user_by_email(db, request.email)
+    print(f"User: {user}")
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

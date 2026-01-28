@@ -5,8 +5,9 @@ JWT token generation, validation, and password hashing.
 
 from datetime import datetime, timedelta
 from typing import Optional
+
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,13 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database.crud import get_user_by_email, get_user_by_id
 from core.database.session import get_db
 
-# Password hashing
-# Configure bcrypt - newer versions of python-bcrypt raise errors for >72 bytes
-# We handle truncation manually in get_password_hash() before passing to passlib
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing (pwdlib, Argon2id by default via recommended())
+password_hasher = PasswordHash.recommended()
 
 # JWT settings
 import os
+
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production-use-env-var")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))  # 7 days default
@@ -29,65 +29,27 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))  # 7
 security = HTTPBearer()
 
 
+
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a password against its hash.
-    Handles bcrypt's 72-byte limit by truncating if necessary.
-    Uses the same truncation logic as get_password_hash().
+    Uses pwdlib (Argon2id by default via recommended()) and enforces ASCII-only passwords.
     """
-    if not plain_password:
+    print(f"Verifying password: {plain_password} against hash: {hashed_password}")
+
+    try:
+        return password_hasher.verify(plain_password, hashed_password)
+    except Exception:
         return False
-    
-    # Apply same truncation as in get_password_hash()
-    # This ensures verification works for passwords that were truncated during hashing
-    password_bytes = plain_password.encode('utf-8')
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-        plain_password = password_bytes.decode('utf-8', errors='ignore')
-        # Verify after decode
-        verify_bytes = plain_password.encode('utf-8')
-        if len(verify_bytes) > 72:
-            plain_password = verify_bytes[:72].decode('utf-8', errors='ignore')
-    
-    return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """
-    Hash a password.
-    Bcrypt has a 72-byte limit, so we truncate longer passwords.
-    
-    The underlying python-bcrypt library raises ValueError for passwords > 72 bytes,
-    so we must truncate before hashing.
+    Hash a password using pwdlib.
     """
-    if not password:
-        raise ValueError("Password cannot be empty")
-    
-    # Bcrypt can only handle passwords up to 72 bytes (not characters!)
-    # Convert to bytes to check actual byte length
-    password_bytes = password.encode('utf-8')
-    
-    # Truncate to 72 bytes if necessary
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-        # Convert back to string
-        password = password_bytes.decode('utf-8', errors='ignore')
-        # Re-encode to verify it's still <= 72 bytes
-        # (decode might create a string that encodes to more bytes in edge cases)
-        verify_bytes = password.encode('utf-8')
-        if len(verify_bytes) > 72:
-            # If still too long, truncate the bytes again
-            password = verify_bytes[:72].decode('utf-8', errors='ignore')
-    
-    # Final check: password must encode to <= 72 bytes
-    final_byte_check = password.encode('utf-8')
-    if len(final_byte_check) > 72:
-        # This should never happen, but if it does, force truncation one more time
-        password = final_byte_check[:72].decode('utf-8', errors='ignore')
-    
-    # Hash the password (guaranteed to be <= 72 bytes when encoded)
-    # The underlying bcrypt library will receive a password that's already truncated
-    return pwd_context.hash(password)
+    return password_hasher.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

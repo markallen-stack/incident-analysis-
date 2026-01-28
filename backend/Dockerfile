@@ -30,13 +30,15 @@ CMD ["python", "-m", "pytest"]
 # Stage 3: Production image
 FROM base as production
 
-# Copy application code
+# Copy application code (API, core logic, database layer)
 COPY app/ ./app/
 COPY core/mcp ./core/mcp/
 COPY core/agents/ ./core/agents/
 COPY core/prompts/ ./core/prompts/
 COPY core/mcp_servers/ ./core/mcp_servers/
 COPY core/vector_db/ ./core/vector_db/
+COPY core/auth.py ./core/
+COPY core/database/ ./core/database/
 COPY core/graph.py ./core/
 COPY core/claude_client.py ./core/
 COPY analyze.py .
@@ -44,7 +46,7 @@ COPY config.py .
 
 # Copy data and models (if needed)
 COPY data/ ./data/
-COPY vector_db/indexes/ ./vector_db/indexes/
+# COPY /core/vector_db/indexes/ ./core/vector_db/indexes/
 
 # Create non-root user
 RUN useradd -m -u 1000 incident-user && \

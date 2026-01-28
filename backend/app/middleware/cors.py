@@ -28,6 +28,7 @@ def get_cors_config():
             "http://127.0.0.1:3000",
             "http://127.0.0.1:3001",
             "http://127.0.0.1:8501",
+            "https://frontend-production-45bf.up.railway.app"
         ]
     
     # In development, also allow all origins if CORS_ORIGINS is not set

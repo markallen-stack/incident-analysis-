@@ -11,17 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.database.session import get_db, engine
 from core.database.crud import create_user, get_user_by_email
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def get_password_hash(password: str) -> str:
-    """Hash a password, handling bcrypt's 72-byte limit"""
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-        password = password_bytes.decode('utf-8', errors='ignore')
-    return pwd_context.hash(password)
+from core.auth import get_password_hash
 
 
 async def test_connection():

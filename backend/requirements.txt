@@ -62,6 +62,7 @@ alembic>=1.13.0  # Database migrations
 gunicorn>=21.2.0
 
 # Additional utilities
+pydantic[email]
 pydantic>=2.5.0
 python-json-logger>=2.0.7  # Structured logging
 
@@ -78,10 +79,10 @@ slowapi>=0.1.9
 
 # Optional: Authentication
 python-jose[cryptography]>=3.3.0  # JWT
-passlib[bcrypt]>=1.7.4  # Password hashing
-
+pwdlib  # Modern password hashing (Argon2id/Bcrypt)
+pwdlib[argon2]
 # Testing
 httpx>=0.26.0  # Async HTTP client for tests
 pytest-asyncio>=0.23.0
-
 prometheus-fastapi-instrumentator
+prometheus_api_client
